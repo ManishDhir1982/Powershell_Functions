@@ -1,0 +1,15 @@
+param (
+[parameter(Mandatory=$true)]
+[System.Security.AccessControl.DirectorySecurity]$obj_FS_AccessRule,
+
+[parameter(Mandatory=$true)]
+[System.Security.AccessControl.FileSystemAccessRule]$obj_FS_AccessControlEntry,
+
+[parameter(Mandatory=$false)]
+[string] $str_Custom_Log_File_Name_Path,
+
+[switch] $swt_ConsoleMessage
+)
+$ACL = New-Object System.Security.AccessControl.DirectorySecurity
+[System.Security.AccessControl.DirectorySecurity]$ACL = $obj_FS_AccessRule.AddAccessRule($obj_FS_AccessControlEntry)
+return ($obj_FS_AccessRule.AddAccessRule($obj_FS_AccessControlEntry))
