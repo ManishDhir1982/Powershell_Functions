@@ -1,0 +1,39 @@
+$computers = @("ttpwnapp-mon02")
+
+$result = 
+foreach ($computer in $computers) {
+    Write-Verbose "Checking $computer ..." -Verbose
+    if(Test-Connection $computer -Count 1 -Quiet){
+
+        $getComplianceStatus = 
+        try{
+            Invoke-Command -ComputerName $computer -ScriptBlock {
+                Test-Path REGISTRY::HKEY_CLASSES_ROOT\ms-msdt #Define the Remote Registry Key Here
+            } -ErrorAction Stop
+        }
+        catch{
+            $error[0].excpetion.message
+        }
+
+        $compliance = 
+        switch($getComplianceStatus){
+            $true   {"Non-Compliant"}
+            $false  {"Compliant"}
+            default {"ErrorGettingData-Check Manually"}
+        }
+                
+        [pscustomobject]@{
+            ComputerName     = $computer
+            ComplianceStatus = $compliance
+        }
+    }
+    else{
+        [pscustomobject]@{
+            ComputerName     = $computer
+            ComplianceStatus = "Computer Unreachable"
+        }
+    }
+}
+
+$result |
+export-csv "$env:USERPROFILE\Desktop\ComplianceReport.csv" -NoTypeInformation
