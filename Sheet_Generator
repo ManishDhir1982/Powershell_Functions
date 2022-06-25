@@ -1,0 +1,278 @@
+$hstbl_Sheet_Data = E:\Data_Final\Reneeka\PS_Modules\fn_Load_CSV.ps1 -str_CSV_Path E:\Data_Final\Reneeka\Sheet_Generator.csv
+
+$int_SR=1
+
+function fn_Prompt_Menu_Options {
+    param (
+    [parameter(Mandatory=$true)]
+    [object[]] $arr_Sheet_Data,
+
+    [parameter(Mandatory=$true)]
+    [string] $str_Group_By
+    )
+
+    if ($str_Group_By -eq "Main_Option") {
+        $arr_Headers = ($arr_Sheet_Data | Get-Member -MemberType NoteProperty).Name
+        $arr_Headers | ForEach-Object {write-host `t $script:int_SR ">" $_ -ForegroundColor Green; $script:int_SR++}
+        $int_User_Input = fn_ReadInput $arr_Headers.Count
+        Write-Host $int_User_Input $arr_Headers[$int_User_Input-1] -ForegroundColor Red
+    } else {
+    Write-Host "`n Select" $str_Group_By':' -ForegroundColor Cyan
+    $arr_Menu_Option = $arr_Sheet_Data | Group-Object -Property $str_Group_By
+    $arr_Menu_Option | ForEach-Object {write-host `t $script:int_SR ">" $_.Name -ForegroundColor Green; $script:int_SR++}
+
+    $int_User_Input = fn_ReadInput $arr_Menu_Option.Name.Count
+    #write-host $int_User_Input $arr_Menu_Option.Name[$int_User_Input-1] -ForegroundColor Red
+    fn_Create_Variables $str_Group_By $arr_Menu_Option.Name[$int_User_Input-1]
+    }
+    $script:int_SR = 1
+}
+
+function fn_Create_Variables {
+param(
+    [parameter(Mandatory=$true)]
+    [string]$str_Variable_Name,
+
+    [parameter(Mandatory=$true)]
+    [string]$str_Variable_Value
+)
+    try {
+        if(Get-Variable -Name $str_Variable_Name -ErrorAction SilentlyContinue){
+            Set-Variable -Name $str_Variable_Name -Value $str_Variable_Value -Scope Script -ErrorAction SilentlyContinue
+        } else {
+            New-Variable -Name $str_Variable_Name -Value $str_Variable_Value -Scope script -ErrorAction SilentlyContinue
+        }
+        
+    } catch {
+        Write-Host "Cannot create new Variable: $str_Variable_Name"
+    }
+}
+
+function fn_ReadInput {
+    param(
+    [parameter(Mandatory=$true)]
+    [int]$in_int_Options_Count
+    )
+
+    Do {
+        try {
+            [int]$script:input = Read-Host "Please Enter your Selection# [ 1 to " $in_int_Options_Count "]"
+            
+            if (($script:input -le 0) -or ($script:input -gt $in_int_Options_Count)) {
+                write-host "Input is not from the range"   
+            }
+        } catch {
+            write-host "Input is not from the range"    
+        }
+    } Until (($script:input -ge 1) -and ($script:input -le ($in_int_Options_Count)))
+    return $script:input
+}
+
+function fn_Show_Topic_Details {
+    param(
+    [parameter(Mandatory=$true)]
+    [string]$in_School_Level,
+    [parameter(Mandatory=$true)]
+    [string]$in_Grade
+
+    )
+
+    #Get List of All Topics based on School Level And Grade
+    $arr_Groups = $script:hstbl_Sheet_Data | where {($_.School_Level -EQ $in_School_Level) -and ($_.Grade -eq $in_Grade)} | Select-Object * | Group-Object -Property Member_Of_Group | ForEach-Object {$_.Name}
+
+    #return $arr_Topics
+    fn_Display_Sub_Topic_by_Group_Details -in_arr_Groups $arr_Groups -in_School_Level $in_School_Level -in_Grade $in_Grade
+}
+
+function fn_Display_Sub_Topic_by_Group_Details {
+    param(
+    [parameter(Mandatory=$true)]
+    [string[]]$in_arr_Groups,
+    [parameter(Mandatory=$true)]
+    [string]$in_School_Level,
+    [parameter(Mandatory=$true)]
+    [string]$in_Grade
+
+    )
+    $int_Group_SR=1
+    $int_Sub_Topic=1
+
+    #Get List of All Sub Topics based on School Level and Grade
+    foreach ($temp_Group in $in_arr_Groups) {
+        Write-Host "Group#[$int_Group_SR] $temp_Group": -ForegroundColor Cyan
+        $int_Group_SR++
+        $arr_Sub_Topics = $script:hstbl_Sheet_Data | where {($_.School_Level -eq $in_School_Level) -and ($_.Grade -eq $in_Grade)  -and ($_.Member_Of_Group -eq $temp_Group)}  | Select-Object * | Group-Object -Property Sub_Topic
+            foreach ($temp_Sub_Topic in $arr_Sub_Topics) {
+
+                Write-Host `t $int_Sub_Topic ">" $temp_Sub_Topic.Group.Topic - $temp_Sub_Topic.Name -ForegroundColor Yellow
+                $int_Sub_Topic++
+            }
+            $int_Sub_Topic=1
+    }
+    $int_User_Input = fn_ReadInput ($int_Group_SR - 1)
+    
+    $script:obj_Final_URL = $script:hstbl_Sheet_Data | where {($_.School_Level -eq $in_School_Level) -and ($_.Grade -eq $in_Grade)  -and ($_.Member_Of_Group -eq $int_User_Input)}  | Select-Object *
+
+    #return $arr_Sub_Topics
+    #$arr_Sub_Topics
+}
+
+function fn_MathAid {
+param(
+    [parameter(Mandatory=$true)]
+    [string]$in_URL
+    )
+    $script:outFilePath
+$doc = Invoke-WebRequest -URI 'https://www.math-aids.com/cgi/pdf_viewer_6.cgi?script_name=equality_equations.pl&p_type1=1&p_type2=1&p_type3=1&p_type4=1&n_range=1&probs=20&language=0&memo=&x=70&y=21'
+
+$str_Temp_URL = $in_URL
+$script:str_SheetURL = $str_Temp_URL.Replace("memo=","memo=$script:dt_File_Name")
+$doc = Invoke-WebRequest -URI $script:str_SheetURL
+
+$div = $doc.ParsedHtml.getElementById('pdf_div_tst').innerHTML
+$iframes = $doc.ParsedHtml.getElementsByTagName("iframe")
+foreach ($temp in $iframes[0]) {
+    if ($temp.name -eq "PDF_Window") {
+        $myURL = $temp.src
+        Invoke-WebRequest -URI $myURL -OutFile $script:outFilePath
+        #Write-Host $myURL
+    }
+}
+}
+
+function fn_Check_If_Path_Exists {
+#Name the Function File as fn_Check_If_Path_Exists
+########################################################################################
+
+param (
+[parameter(Mandatory=$true)]
+[string] $str_Test_Path,
+
+[parameter(Mandatory=$true)]
+[boolean] $bool_Create_If_Not_Exists,
+
+[parameter(Mandatory=$false)]
+[string] $str_Custom_Log_File_Name_Path,
+
+[switch] $swt_ConsoleMessage
+)
+
+$bool_Path_Created = $false
+
+$str_Error_Message = ""
+$str_Default_Log_File_Name_Path = "$env:USERPROFILE\Desktop\"+($MyInvocation.MyCommand.Name).Replace(".ps1","_log.txt")
+
+if ($str_Custom_Log_File_Name_Path -ne "") {
+    $str_Default_Log_File_Name_Path = $str_Custom_Log_File_Name_Path
+}
+try {
+
+    if (!(Test-Path $str_Test_Path)) {
+        if (!($bool_Create_If_Not_Exists=$false)) {
+            New-Item -ItemType Directory -Force $str_Test_Path
+        }
+        $bool_Path_Created = $true
+    }
+
+    if ($swt_ConsoleMessage) {
+        Write-Host "File: $str_CSV_Path | Import Successful" -ForegroundColor Green
+    }
+
+} catch {
+    $dt_Current_Date = Get-Date
+    $str_Error_Message = "$dt_Current_Date | Line# " + $Error[0].InvocationInfo.ScriptLineNumber + " | " + $Error[0].Exception.Message
+    $str_Error_Message | Add-Content -Path $str_Default_Log_File_Name_Path -Force
+    
+    if ($swt_ConsoleMessage) {
+        Write-Host $str_Error_Message -ForegroundColor Red
+    }
+
+}
+}
+
+$dt_Sheet_Start_Date = date("24-June-2022") -Format "dd-MMMM-yyyy" # Change the Date here
+
+
+$dt_Date = Get-Date -Format "dd-MMMM-yyyy"
+$outFileBaseFolder = "E:\Data_Final\"
+$str_DestinationFolder = "$outFileBaseFolder$script:School_Level-Grade$script:Grade - $script:dt_Date"
+$int_Number_Of_Weeks = 12
+$int_Number_of_Print
+
+function fn_Days_To_Add {
+param (
+[parameter(Mandatory=$true)]
+[string] $int_Days_To_Add
+)
+}
+
+function fn_SaveSheets() {
+    $int_Ctr_Days_Add=0
+    $script:int_Number_of_Print = $script:int_Number_Of_Weeks * 7
+    for ($i = 1; $i -le $script:int_Number_of_Print; $i++) {
+        foreach ($temp_Object in $script:obj_Final_URL) {
+        $str_SheetSource = $temp_Object.WebSite
+        $str_Topic = $temp_Object.Topic
+        $str_Sub_Topic = $temp_Object.Sub_Topic
+        
+        $script:dt_File_Name = (get-date ((get-date $script:dt_Sheet_Start_Date).AddDays($int_Ctr_Days_Add)) -Format "dd-MMMM-yyyy")
+        $int_Ctr_Days_Add++
+
+        fn_Check_If_Path_Exists $str_DestinationFolder\$str_Topic\$str_Sub_Topic $true
+        $script:outFilePath = "$str_DestinationFolder\$str_Topic\$str_Sub_Topic\$i-$script:dt_File_Name-$i.pdf"
+        
+        if ($str_SheetSource -eq "Math-Aids") {
+
+            fn_MathAid $temp_Object.WebSite_URL
+        } elseif ($str_SheetSource -eq "HomeSchoolMath") {
+            $str_Temp_URL = $temp_Object.WebSite_URL
+            $script:str_SheetURL = $str_Temp_URL.Replace("title=","title=`"$script:dt_File_Name`"")
+            Invoke-WebRequest -URI $str_Temp_URL -OutFile $script:outFilePath
+            #$script:str_SheetURL
+        } elseif ($str_SheetSource -eq "MathFactCafe1") {
+            $dbl_Random = (Get-Random -Maximum 9999999) -join ''
+            $str_Temp_URL = $temp_Object.WebSite_URL
+            $script:str_SheetURL = $str_Temp_URL.Replace("Seed=5078184","Seed=$dbl_Random")
+            Invoke-WebRequest -URI $script:str_SheetURL -OutFile $script:outFilePath
+        } elseif ($script:str_SheetSource -eq "MathFactCafe") {
+            
+            $dbl_Random = (Get-Random -Maximum 9999999) -join ''
+            $str_Temp_URL = $temp_Object.WebSite_URL
+            $script:str_SheetURL = $str_Temp_URL.Replace("Seed=5078184","Seed=$dbl_Random")
+            $doc = Invoke-WebRequest -URI $script:str_SheetURL
+            $div_MathCafe = $doc.ParsedHtml.getElementByID('worksheet-body')
+            #$div_MathCafe.TextContent | Out-File "E:$i.txt"
+            $div_WordProblems = $div_MathCafe.getElementsByTagName('div')
+            $myProblems = "`t `t" + $script:dt_File_Name + "`r`n `r`n `r`n `r`n"
+            foreach ($temp_WordProblem in $div_WordProblems) {
+            if ($temp_WordProblem.ClassName -eq "wp-problem ") {
+                $myProblems += $temp_WordProblem.TextContent + "`r`n `r`n `r`n"
+                 
+                }
+            }
+                $myProblems | Out-File $script:outFilePath.Replace("pdf","doc") -Encoding ascii
+            }
+            
+        
+        
+
+    }
+    }
+    $script:int_Days_To_Add = 0
+
+}
+$script:obj_Final_URL=""
+$outFilePath
+
+#fn_Prompt_Menu_Options $hstbl_Sheet_Data "Main_Option"
+
+fn_Prompt_Menu_Options $hstbl_Sheet_Data "School_Level"
+fn_Prompt_Menu_Options $hstbl_Sheet_Data "Grade"
+
+fn_Show_Topic_Details $School_Level $Grade
+
+fn_SaveSheets
+
+#fn_Prompt_Menu_Options $hstbl_Sheet_Data "Topic"
+#fn_Prompt_Menu_Options $hstbl_Sheet_Data "Sub_Topic"
+#fn_Prompt_Menu_Options $hstbl_Sheet_Data "Member_Of_Group"
