@@ -1,0 +1,36 @@
+$obj_CSV_Data = ""
+$str_Computer_Name_Column_Heading = "Computer_Names"
+$str_CSV_File_Path = "C:\Support"
+$str_CSV_File_Name = "AST_Computer_List.csv"
+
+$str_Local_Admin_OU_DN = 'OU=LocalAdmin,OU=User Groups,OU=TMX,DC=WIN,DC=TMXLAB'
+$str_RDP_Admin_OU_DN = 'OU=RDP,OU=User Groups,OU=TMX,DC=WIN,DC=TMXLAB'
+
+$str_AD_Domain = (Get-WmiObject win32_computersystem).Domain
+$netbiosname = $env:USERDOMAIN
+$servername = ($env:COMPUTERNAME).ToLower()
+
+$obj_CSV_Data = C:\support\scripts\fn_Load_CSV.ps1 -str_CSV_Path "$str_CSV_File_Path\$str_CSV_File_Name" -swt_ConsoleMessage
+
+if ($obj_CSV_Data -ne $false) {
+    foreach ($temp_ComputerName in $obj_CSV_Data.$str_Computer_Name_Column_Heading) {
+
+        #Create Local Admin Groups
+        $group_localadmin = "adm_$temp_ComputerName"
+        C:\support\scripts\fn_Add_AD_Group.ps1 -str_AD_Domain_Name $str_AD_Domain `
+                                        -str_AD_NetBIOS_Name $netbiosname `
+                                        -str_LDAP_AD_OU $str_Local_Admin_OU_DN `
+                                        -str_Group_Name $group_localadmin `
+                                        -str_Group_Type 0x80000002 `
+                                        -swt_ConsoleMessage
+        
+        #Create RDP Groups
+        $group_RDP = "rdp_$temp_ComputerName"
+        C:\support\scripts\fn_Add_AD_Group.ps1 -str_AD_Domain_Name $str_AD_Domain `
+                                        -str_AD_NetBIOS_Name $netbiosname `
+                                        -str_LDAP_AD_OU $str_RDP_Admin_OU_DN `
+                                        -str_Group_Name $group_RDP `
+                                        -str_Group_Type 0x80000002 `
+                                        -swt_ConsoleMessage
+    }
+}
