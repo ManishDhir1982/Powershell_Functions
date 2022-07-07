@@ -1,0 +1,2 @@
+$str_GPO_Name = "DC Time Sync" #Change the GPO Name here
+Get-GPPermission -Name $str_GPO_Name -All | Where-Object {$_.Permission -eq "GpoApply"}
