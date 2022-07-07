@@ -1,0 +1,9 @@
+Invoke-Command -ComputerName $server -ScriptBlock { 
+    Function Get-LocalTime($UTCTime) {
+    $strCurrentTimeZone = (Get-WmiObject win32_timezone).StandardName
+    $TZ = [System.TimeZoneInfo]::FindSystemTimeZoneById($strCurrentTimeZone)
+    Return [System.TimeZoneInfo]::ConvertTimeFromUtc($UTCTime, $TZ)
+    }
+    
+    Get-LocalTime $(New-Object -ComObject Microsoft.Update.AutoUpdate).Results.LastSearchSuccessDate
+}; 
