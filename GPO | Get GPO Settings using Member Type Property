@@ -1,0 +1,17 @@
+#-------------------------
+$arr_Exclude_GPO_Properties = @("Type", `
+                                "Blocked")
+#-------------------------
+
+$str_GPO_Name = "Tarun - Folder Redirection - Roaming Profiles"
+Get-GPOReport -Name $str_GPO_Name -ReportType Xml -Path C:\support\GPOReports\$str_GPO_Name.xml
+[xml]$obj_GPO_XML = [xml](Get-Content C:\support\GPOReports\$str_GPO_Name.xml)
+
+#Get All Extension Data
+$obj_All_Extension_Data = $obj_GPO_XML.GPO.Computer.ExtensionData
+
+#Get All Extensions
+$obj_All_Extensions = $obj_All_Extension_Data | ForEach-Object {$_.Extension}
+
+#Get the Usable Property for All the Extensions
+ForEach ($temp in $obj_All_Extensions) {$temp | Get-Member | where {($_.MemberType -eq "Property") -and ($_.Name -notin $arr_Exclude_GPO_Properties)}}
